@@ -1,0 +1,18 @@
+{
+    "name": "vkolegov/laravel-api-controller",
+    "description": "Basic Controller to create simple API with support for pagination, sorting, filtering and exporting",
+    "type": "library",
+    "require": {
+        "php": ">=7.4",
+        "laravel/framework": "^7.0|^8.0|^9.0",
+        "phpoffice/phpspreadsheet": "^1.8.0"
+    },
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "Vladislav Kolegov",
+            "email": "v.kolegov@outlook.com"
+        }
+    ],
+    "minimum-stability": "beta"
+}
