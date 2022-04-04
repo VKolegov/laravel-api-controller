@@ -41,7 +41,8 @@ abstract class AbstractAPIController extends Controller
         if (count(static::FILTER_FIELDS) > 0) {
             $query = $this->filterQuery(
                 static::MODEL_CLASS,
-                $r
+                $r,
+                static::FILTER_FIELDS,
             );
         } else {
             $query = (static::MODEL_CLASS)::query();
@@ -215,7 +216,8 @@ abstract class AbstractAPIController extends Controller
         if (count(static::FILTER_FIELDS) > 0) {
             $query = $this->filterQuery(
                 static::MODEL_CLASS,
-                $r
+                $r,
+                static::FILTER_FIELDS,
             );
         } else {
             $query = (static::MODEL_CLASS)::query();
@@ -247,10 +249,10 @@ abstract class AbstractAPIController extends Controller
         return $entity->jsonSerialize();
     }
 
-    protected function filterValidationRules(): array
+    protected function filterValidationRules(array $fields): array
     {
         $rules = [];
-        foreach (static::FILTER_FIELDS as $field => $type) {
+        foreach ($fields as $field => $type) {
 
             switch ($type) {
                 case 'bool':
@@ -278,21 +280,27 @@ abstract class AbstractAPIController extends Controller
         return $rules;
     }
 
-    protected function filterQuery(string $modelName, Request $r): Builder
+    /**
+     * @param string $modelName Illuminate\Database\Eloquent\Model class name
+     * @param \Illuminate\Http\Request $r
+     * @param array $fields key - field to filter by, value = field type
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function filterQuery(string $modelName, Request $r, array $fields): Builder
     {
         // TODO: Make sure its a model class
         /** @var \Illuminate\Database\Eloquent\Builder $query */
         $query = $modelName::query();
 
         $inputFields = $r->validate(
-            $this->filterValidationRules()
+            $this->filterValidationRules($fields)
         );
 
         if (empty($inputFields)) {
             return $query;
         }
 
-        foreach (static::FILTER_FIELDS as $field => $type) {
+        foreach ($fields as $field => $type) {
 
             $fieldQ = $inputFields[$field] ?? "";
 
