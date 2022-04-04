@@ -278,7 +278,7 @@ abstract class AbstractAPIController extends Controller
         return $rules;
     }
 
-    protected function filterQuery(string $modelName, APIEntitiesRequest $r): Builder
+    protected function filterQuery(string $modelName, Request $r): Builder
     {
         // TODO: Make sure its a model class
         /** @var \Illuminate\Database\Eloquent\Builder $query */
