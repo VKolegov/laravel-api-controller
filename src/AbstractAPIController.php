@@ -8,12 +8,10 @@ namespace VKolegov\LaravelAPIController;
 
 
 use Exception;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -25,7 +23,7 @@ abstract class AbstractAPIController extends Controller
 {
     use HandlesAPIRequest, ExportsFilteredEntities;
 
-    public const MODEL_CLASS = Model::class;
+    public const MODEL_CLASS = ""; // should be Illuminate\Database\Eloquent\Model class name
     public const GET_MODEL_BY = null;
     public const MODEL_RELATIONSHIPS = [];
     /**
@@ -35,6 +33,16 @@ abstract class AbstractAPIController extends Controller
     public const FILTER_FIELDS = [];
     public const EAGER_LOAD_RELATIONSHIPS = [];
     public const EXPORT_EAGER_LOAD_RELATIONSHIPS = [];
+
+    /**
+     * @throws \Exception
+     */
+    public function __construct()
+    {
+        if (empty(static::MODEL_CLASS) || static::MODEL_CLASS === Model::class) {
+            throw new \Exception("API Controller: MODEL_CLASS is not defined");
+        }
+    }
 
     public function index(APIEntitiesRequest $r): JsonResponse
     {
