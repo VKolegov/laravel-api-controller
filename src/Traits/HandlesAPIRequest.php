@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -332,6 +333,127 @@ trait HandlesAPIRequest
         ];
 
         return $filterOptions;
+    }
+
+    protected function filterValidationRules(array $fields): array
+    {
+        $rules = [];
+        foreach ($fields as $field => $type) {
+
+            switch ($type) {
+                case 'bool':
+                    $rules[$field] = ['boolean'];
+                    break;
+                case 'string':
+                    $rules[$field] = ['string', 'min:3', 'max:255'];
+                    break;
+                case 'select':
+                    $rules[$field] = ['sometimes', 'array', 'max:20'];
+                    $rules["$field.*"] = ['string', 'min:1', 'max:100'];
+                    break;
+                case 'num_range':
+                    $rules["{$field}_min"] = ['int'];
+                    $rules["{$field}_max"] = ['int', "gte:{$field}_min"];
+                    break;
+                case 'date_range':
+                    $rules["{$field}_min"] = ['date'];
+                    $rules["{$field}_max"] = ['date', "gte:{$field}_min"];
+                    break;
+
+            }
+
+        }
+        return $rules;
+    }
+
+    /**
+     * @param string $modelName Illuminate\Database\Eloquent\Model class name
+     * @param \Illuminate\Http\Request $r
+     * @param array $fields key - field to filter by, value = field type
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function filterQuery(string $modelName, Request $r, array $fields): \Illuminate\Database\Eloquent\Builder
+    {
+        // TODO: Make sure its a model class
+        /** @var \Illuminate\Database\Eloquent\Builder $query */
+        $query = $modelName::query();
+
+        $inputFields = $r->validate(
+            $this->filterValidationRules($fields)
+        );
+
+        if (empty($inputFields)) {
+            return $query;
+        }
+
+        foreach ($fields as $field => $type) {
+
+            $fieldQ = $inputFields[$field] ?? "";
+
+            switch ($type) {
+                case 'bool':
+
+                    $fieldQ = $inputFields[$field] ?? null;
+                    if ($fieldQ === null) break;
+
+                    $query->where($field, $fieldQ);
+                    break;
+                case 'string':
+
+                    if (!$fieldQ) break;
+
+                    $query->where($field, 'like', "%$fieldQ%");
+                    break;
+                case 'select':
+
+                    if (!is_array($fieldQ)) break;
+
+                    $query->where(function ($q) use ($field, $fieldQ) {
+
+                        foreach ($fieldQ as $selectValue) {
+                            $q->orWhere($field, '=', $selectValue);
+                        }
+
+                    });
+
+                    break;
+
+                case 'num_range':
+
+                    $fieldMin = $inputFields["{$field}_min"] ?? null;
+                    $fieldMax = $inputFields["{$field}_max"] ?? null;
+
+                    if (!is_null($fieldMin)) {
+                        $query->where($field, '>=', $fieldMin);
+                    }
+
+                    if (!is_null($fieldMax)) {
+                        $query->where($field, '<=', $fieldMax);
+                    }
+                    break;
+
+                case 'date_range':
+
+                    $fieldMin = $inputFields["{$field}_min"] ?? null;
+                    $fieldMax = $inputFields["{$field}_max"] ?? null;
+
+                    if (!is_null($fieldMin)) {
+                        $minDate = Carbon::parse($fieldMin)->startOfDay();
+                        $query->where($field, '>=', $minDate);
+                    }
+
+                    if (!is_null($fieldMax)) {
+                        $maxDate = Carbon::parse($fieldMax)->endOfDay();
+                        $query->where($field, '<=', $maxDate);
+                    }
+
+                    break;
+            }
+
+        }
+
+        return $query;
+
     }
 
     // TODO: Tests
