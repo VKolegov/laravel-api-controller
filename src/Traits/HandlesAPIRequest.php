@@ -98,6 +98,16 @@ trait HandlesAPIRequest
             $query = $entityQualifier::query()->where($filterOptions);
         }
 
+        if (!$fieldCase) {
+            $model = $query->getModel();
+
+            if ($model::$snakeAttributes) {
+                $fieldCase = 'snake';
+            } else {
+                $fieldCase = 'camel';
+            }
+        }
+
         $this->applySorting($r, $query, $fieldCase);
 
         // Исключаем айдишники
