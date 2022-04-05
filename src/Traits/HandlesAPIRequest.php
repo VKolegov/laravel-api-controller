@@ -388,9 +388,14 @@ trait HandlesAPIRequest
         /** @var \Illuminate\Database\Eloquent\Builder $query */
         $query = $modelName::query();
 
-        $inputFields = $r->validate(
-            $this->filterValidationRules($fields)
-        );
+        // To support filtering by embedded mongodb fields, like 'store.id'
+        if ($query->getModel()->getConnection()->getDriverName() !== 'mongodb') {
+            $inputFields = $r->validate(
+                $this->filterValidationRules($fields)
+            );
+        } else {
+            $inputFields = $r->all();
+        }
 
         if (empty($inputFields)) {
             return $query;
