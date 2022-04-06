@@ -359,7 +359,7 @@ trait HandlesAPIRequest
                     break;
                 case 'select':
                     $rules[$field] = ['sometimes', 'array', 'max:20'];
-                    $rules["$field.*"] = ['string', 'min:1', 'max:100'];
+                    $rules["$field.*"] = ['alpha_dash', 'min:1', 'max:100'];
                     break;
                 case 'num_range':
                     $rules["{$field}_min"] = ['int'];
