@@ -13,6 +13,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -181,13 +182,23 @@ trait HandlesAPIRequest
         callable $mappingCallback = null
     ): array
     {
-        // Если задан метод, который выполняет маппинг сущности
+
+        $mapping = null;
+
         if (is_callable($mappingCallback)) {
-            $entities = $entities->map($mappingCallback);
-        } else {
+            // Если задан метод, который выполняет маппинг сущности
+            $mapping = $mappingCallback;
+        } else if (method_exists($this, 'mapEntity')) {
             // Если существует метод, который выполняет маппинг сущности
-            if (method_exists($this, 'mapEntity')) {
-                $entities = $entities->map([$this, 'mapEntity']);
+            $mapping = [$this, 'mapEntity'];
+        }
+
+        if (is_callable($mapping)) {
+            if ($entities instanceof Collection) {
+                $entities = $entities->map($mapping);
+            }
+            if (is_array($entities)) {
+                $entities = array_map($mapping, $entities);
             }
         }
 
