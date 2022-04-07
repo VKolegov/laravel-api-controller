@@ -60,6 +60,7 @@ abstract class AbstractAPIController extends Controller
         return $this->getEntitiesResponse(
             $query,
             $r,
+            [],
             [$this, 'mapEntity']
         );
     }
