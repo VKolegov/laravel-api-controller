@@ -188,9 +188,6 @@ trait HandlesAPIRequest
         if (is_callable($mappingCallback)) {
             // Если задан метод, который выполняет маппинг сущности
             $mapping = $mappingCallback;
-        } else if (method_exists($this, 'mapEntity')) {
-            // Если существует метод, который выполняет маппинг сущности
-            $mapping = [$this, 'mapEntity'];
         }
 
         if (is_callable($mapping)) {
