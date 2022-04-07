@@ -60,6 +60,7 @@ abstract class AbstractAPIController extends Controller
         return $this->getEntitiesResponse(
             $query,
             $r,
+            [$this, 'mapEntity']
         );
     }
 
@@ -235,6 +236,21 @@ abstract class AbstractAPIController extends Controller
 
     abstract public function validationRules(bool $update = false): array;
 
+    /**
+     * Выполняет маппинг каждой сущности (index)
+     * @param \Illuminate\Database\Eloquent\Model $entity
+     * @return array
+     */
+    public function mapEntity(Model $entity): array
+    {
+        return $entity->jsonSerialize();
+    }
+
+    /**
+     * Выполняет маппинг единичной сущности (create, update, delete)
+     * @param \Illuminate\Database\Eloquent\Model $entity
+     * @return array
+     */
     public function mapSingleEntity(Model $entity): array
     {
 
