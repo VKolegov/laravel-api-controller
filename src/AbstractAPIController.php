@@ -26,10 +26,6 @@ abstract class AbstractAPIController extends Controller
     public const MODEL_CLASS = ""; // should be Illuminate\Database\Eloquent\Model class name
     public const GET_MODEL_BY = null;
     public const MODEL_RELATIONSHIPS = [];
-    /**
-     * @deprecated
-     */
-    public const SEARCHABLE_FIELDS = [];
     public const FILTER_FIELDS = [];
     public const EAGER_LOAD_RELATIONSHIPS = [];
     public const EXPORT_EAGER_LOAD_RELATIONSHIPS = [];
@@ -61,18 +57,10 @@ abstract class AbstractAPIController extends Controller
         }
 
 
-        if (count(static::SEARCHABLE_FIELDS) === 0) {
-            return $this->getEntitiesResponse(
-                $query,
-                $r,
-            );
-        } else {
-            return $this->getSearchableEntities(
-                $query,
-                $r,
-                static::SEARCHABLE_FIELDS,
-            );
-        }
+        return $this->getEntitiesResponse(
+            $query,
+            $r,
+        );
     }
 
     /**
