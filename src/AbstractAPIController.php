@@ -11,7 +11,6 @@ use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -170,13 +169,25 @@ abstract class AbstractAPIController extends Controller
             );
         }
 
-        return $this->updateEntity(
+        $updateEntityResponse = $this->updateEntity(
             $model,
             $newAttributes,
             static::MODEL_RELATIONSHIPS,
             null,
             [$this, 'mapSingleEntity']
         );
+
+        try {
+            $this->postCreateHook($model, $updateEntityResponse);
+        } catch (Throwable $e) {
+            return $this->errorResponse(
+                $e->getMessage(),
+                [],
+                400
+            );
+        }
+
+        return $updateEntityResponse;
     }
 
     /**
@@ -204,6 +215,15 @@ abstract class AbstractAPIController extends Controller
         $this->entityUpdateAccessHook($model);
 
         return $this->deleteEntity($model);
+    }
+
+    /**
+     * @param Model $entity
+     * @param \Illuminate\Http\JsonResponse $response
+     * @return void
+     */
+    protected function postUpdateHook(Model $entity, JsonResponse &$response)
+    {
     }
 
 
