@@ -11,6 +11,7 @@ use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -108,7 +109,7 @@ abstract class AbstractAPIController extends Controller
         );
 
         try {
-            $this->postCreateHook($entity);
+            $this->postCreateHook($entity, $createEntityResponse);
         } catch (Throwable $e) {
             return $this->errorResponse(
                 $e->getMessage(),
@@ -131,9 +132,10 @@ abstract class AbstractAPIController extends Controller
 
     /**
      * @param Model $entity
+     * @param \Illuminate\Http\JsonResponse $response
      * @return void
      */
-    protected function postCreateHook(Model $entity)
+    protected function postCreateHook(Model $entity, JsonResponse &$response)
     {
 
     }
