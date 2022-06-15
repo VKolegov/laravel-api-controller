@@ -258,16 +258,28 @@ trait HandlesAPIRequest
     }
 
     /**
-     * @param string $modelName Illuminate\Database\Eloquent\Model class name
+     * @param string|\Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Relations\Relation $modelName
      * @param \Illuminate\Http\Request $r
      * @param array $fields key - field to filter by, value = field type
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Relations\Relation
+     * @throws \Exception
      */
-    protected function filterQuery(string $modelName, Request $r, array $fields): \Illuminate\Database\Eloquent\Builder
+    protected function filterQuery($modelName, Request $r, array $fields)
     {
-        // TODO: Make sure its a model class
         /** @var \Illuminate\Database\Eloquent\Builder $query */
-        $query = $modelName::query();
+        if (is_a($modelName, Model::class, true)) {
+            $query = $modelName::query();
+        } else if (
+            $modelName instanceof Builder
+            || $modelName instanceof \Illuminate\Database\Eloquent\Builder
+            || $modelName instanceof Relation
+        ) {
+            $query = $modelName;
+        } else {
+            throw new \Exception(
+                "modelName is nor Model, nor Query Builder, nor Relation: " . get_class($modelName)
+            );
+        }
 
         // To support filtering by embedded mongodb fields, like 'store.id'
         if ($query->getModel()->getConnection()->getDriverName() !== 'mongodb') {
