@@ -178,7 +178,7 @@ abstract class AbstractAPIController extends Controller
         );
 
         try {
-            $this->postCreateHook($model, $updateEntityResponse);
+            $this->postUpdateHook($model, $updateEntityResponse);
         } catch (Throwable $e) {
             return $this->errorResponse(
                 $e->getMessage(),
