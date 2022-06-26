@@ -168,18 +168,30 @@ abstract class AbstractAPIController extends Controller
                 400
             );
         }
-
-        $updateEntityResponse = $this->updateEntity(
-            $model,
-            $newAttributes,
-            static::MODEL_RELATIONSHIPS,
-            null,
-            [$this, 'mapSingleEntity']
-        );
-
         try {
+
+            \DB::beginTransaction();
+
+            $updateEntityResponse = $this->updateEntity(
+                $model,
+                $newAttributes,
+                static::MODEL_RELATIONSHIPS,
+                null,
+                [$this, 'mapSingleEntity']
+            );
+
             $this->postUpdateHook($model, $updateEntityResponse);
+
+            \DB::commit();
+        } catch (ValidationException $e) {
+
+            \DB::rollBack();
+            throw $e;
+
         } catch (Throwable $e) {
+
+            \DB::rollBack();
+
             return $this->errorResponse(
                 $e->getMessage(),
                 [],
