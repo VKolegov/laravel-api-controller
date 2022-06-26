@@ -124,6 +124,9 @@ abstract class AbstractAPIController extends Controller
         } catch (Throwable $e) {
 
             \DB::rollBack();
+
+            \Log::error($e->getTraceAsString());
+
             return $this->errorResponse(
                 $e->getMessage(),
                 [],
@@ -205,6 +208,8 @@ abstract class AbstractAPIController extends Controller
         } catch (Throwable $e) {
 
             \DB::rollBack();
+
+            \Log::error($e->getTraceAsString());
 
             return $this->errorResponse(
                 $e->getMessage(),
