@@ -81,6 +81,9 @@ abstract class AbstractAPIController extends Controller
         return $this->getEntity($model, null, [$this, 'mapSingleEntity']);
     }
 
+    /**
+     * @throws \Illuminate\Validation\ValidationException
+     */
     public function store(Request $r): JsonResponse
     {
         $attributes = $r->validate(
@@ -98,18 +101,29 @@ abstract class AbstractAPIController extends Controller
                 400
             );
         }
-
-        $createEntityResponse = $this->createEntity(
-            static::MODEL_CLASS,
-            $attributes,
-            static::MODEL_RELATIONSHIPS,
-            [$this, 'mapSingleEntity'],
-            $entity,
-        );
-
         try {
+
+            \DB::beginTransaction();
+
+            $createEntityResponse = $this->createEntity(
+                static::MODEL_CLASS,
+                $attributes,
+                static::MODEL_RELATIONSHIPS,
+                [$this, 'mapSingleEntity'],
+                $entity,
+            );
+
             $this->postCreateHook($entity, $createEntityResponse);
+
+            \DB::commit();
+        } catch (ValidationException $e) {
+
+            \DB::rollBack();
+            throw $e;
+
         } catch (Throwable $e) {
+
+            \DB::rollBack();
             return $this->errorResponse(
                 $e->getMessage(),
                 [],
