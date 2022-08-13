@@ -40,7 +40,7 @@ abstract class AbstractAPIController extends Controller
         }
     }
 
-    public function index(APIEntitiesRequest $r): JsonResponse
+    public function getQuery(APIEntitiesRequest $r, array $relationships)
     {
         if (count(static::FILTER_FIELDS) > 0) {
             $query = $this->filterQuery(
@@ -52,10 +52,18 @@ abstract class AbstractAPIController extends Controller
             $query = (static::MODEL_CLASS)::query();
         }
 
-        if (count(static::EAGER_LOAD_RELATIONSHIPS) > 0) {
-            $query->with(static::EAGER_LOAD_RELATIONSHIPS);
+        $this->applySorting($r, $query);
+
+        if (count($relationships) > 0) {
+            $query->with($relationships);
         }
 
+        return $query;
+    }
+
+    public function index(APIEntitiesRequest $r): JsonResponse
+    {
+        $query = $this->getQuery($r, static::EAGER_LOAD_RELATIONSHIPS);
 
         return $this->getEntitiesResponse(
             $query,
@@ -264,28 +272,15 @@ abstract class AbstractAPIController extends Controller
     public function export(APIEntitiesRequest $r): StreamedResponse
     {
         $this->exportRequest = $r;
-        if (count(static::FILTER_FIELDS) > 0) {
-            $query = $this->filterQuery(
-                static::MODEL_CLASS,
-                $r,
-                static::FILTER_FIELDS,
-            );
-        } else {
-            $query = (static::MODEL_CLASS)::query();
-        }
-
-        $this->applySorting($r, $query);
 
         $relationships = array_merge(
             static::EAGER_LOAD_RELATIONSHIPS, static::EXPORT_EAGER_LOAD_RELATIONSHIPS
         );
         $relationships = array_unique($relationships);
 
-        if (count($relationships) > 0) {
-            $query->with($relationships);
-        }
-
-        return $this->exportToXLSX($query);
+        return $this->exportToXLSX(
+            $this->getQuery($r, $relationships)
+        );
     }
 
     abstract public function validationRules(bool $update = false): array;
