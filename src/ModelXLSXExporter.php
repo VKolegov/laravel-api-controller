@@ -7,11 +7,14 @@ use Illuminate\Support\LazyCollection;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Writer\BaseWriter;
+use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ModelXLSXExporter
 {
+    protected string $mode = 'xlsx';
     protected string $modelClassName;
     /**
      * @var \Illuminate\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Relations\Relation
@@ -37,12 +40,12 @@ class ModelXLSXExporter
     }
 
     /**
-     * @param int $lazyChunkSize
+     * @param string $mode
      * @return self
      */
-    public function setLazyChunkSize(int $lazyChunkSize): self
+    public function setMode(string $mode): self
     {
-        $this->lazyChunkSize = $lazyChunkSize;
+        $this->mode = $mode;
         return $this;
     }
 
@@ -113,6 +116,16 @@ class ModelXLSXExporter
     }
 
     /**
+     * @param int $lazyChunkSize
+     * @return self
+     */
+    public function setLazyChunkSize(int $lazyChunkSize): self
+    {
+        $this->lazyChunkSize = $lazyChunkSize;
+        return $this;
+    }
+
+    /**
      * @return array|\string[][]
      */
     public function getHeader(): array
@@ -132,20 +145,35 @@ class ModelXLSXExporter
     {
 
         $spreadsheet = $this->fillOutSpreadsheet();
-        $xlsx = new Xlsx($spreadsheet);
+
+        /**
+         * @var BaseWriter $document
+         */
+        switch ($this->mode) {
+            case 'xlsx':
+                $document = new Xlsx($spreadsheet);
+                $contentType = 'application/vnd.ms-excel';
+                break;
+            case 'csv':
+                $document = new Csv($spreadsheet);
+                $contentType = 'text/csv';
+                break;
+            default:
+                throw new \Exception("Unknown mode: $this->mode");
+        }
 
         $filename = $filename ?? $this->getFileName();
 
         $response = response()->streamDownload(
-            function () use ($xlsx) {
-                $xlsx->save(
+            function () use ($document) {
+                $document->save(
                     "php://output"
                 );
             },
             $filename
         );
 
-        $response->headers->set('Content-Type', "application/vnd.ms-excel");
+        $response->headers->set('Content-Type', $contentType);
         return $response;
     }
 
