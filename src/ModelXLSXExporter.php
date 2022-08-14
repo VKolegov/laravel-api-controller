@@ -215,7 +215,7 @@ class ModelXLSXExporter
         return $spreadsheet;
     }
 
-    protected function rowsData(): array
+    public function rowsData(): array
     {
         $data = [];
         $models = $this->getLazyCollection();
@@ -233,7 +233,7 @@ class ModelXLSXExporter
         return $data;
     }
 
-    protected function rowData(Model $model): ?array
+    public function rowData(Model $model): ?array
     {
         if (!$this->mappingFunction) {
             return $model->toArray();
