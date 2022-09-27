@@ -4,6 +4,7 @@ namespace VKolegov\LaravelAPIController\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Support\LazyCollection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -11,7 +12,6 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use SplFixedArray;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use VKolegov\LaravelAPIController\Requests\APIEntitiesRequest;
 
 trait ExportsFilteredEntities
 {
@@ -21,7 +21,7 @@ trait ExportsFilteredEntities
      * @var int[]
      */
     protected array $excludedFields = [];
-    protected APIEntitiesRequest $exportRequest;
+    protected Request $exportRequest;
 
     /**
      * @param \Illuminate\Database\Eloquent\Builder $q

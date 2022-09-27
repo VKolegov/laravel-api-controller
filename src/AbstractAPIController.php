@@ -15,7 +15,6 @@ use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
-use VKolegov\LaravelAPIController\Requests\APIEntitiesRequest;
 use VKolegov\LaravelAPIController\Traits\ExportsFilteredEntities;
 use VKolegov\LaravelAPIController\Traits\HandlesAPIRequest;
 
@@ -40,7 +39,7 @@ abstract class AbstractAPIController extends Controller
         }
     }
 
-    public function getQuery(APIEntitiesRequest $r, array $relationships)
+    public function getQuery(Request $r, array $relationships)
     {
         if (count(static::FILTER_FIELDS) > 0) {
             $query = $this->filterQuery(
@@ -61,8 +60,12 @@ abstract class AbstractAPIController extends Controller
         return $query;
     }
 
-    public function index(APIEntitiesRequest $r): JsonResponse
+    public function index(Request $r): JsonResponse
     {
+        $r->validate(
+            $this->entitiesRequestValidationRules()
+        );
+
         $query = $this->getQuery($r, static::EAGER_LOAD_RELATIONSHIPS);
 
         return $this->getEntitiesResponse(
@@ -269,8 +272,12 @@ abstract class AbstractAPIController extends Controller
     /**
      * @throws \Illuminate\Validation\ValidationException
      */
-    public function export(APIEntitiesRequest $r): StreamedResponse
+    public function export(Request $r): StreamedResponse
     {
+        $r->validate(
+            $this->entitiesRequestValidationRules()
+        );
+
         $this->exportRequest = $r;
 
         $relationships = array_merge(
@@ -281,6 +288,20 @@ abstract class AbstractAPIController extends Controller
         return $this->exportToXLSX(
             $this->getQuery($r, $relationships)
         );
+    }
+
+    public function entitiesRequestValidationRules(): array
+    {
+        return [
+            'onlyCount' => ['sometimes', 'boolean'],
+            'sortBy' => ['sometimes', 'string'],
+            'descending' => ['required_with:sortBy', 'boolean'],
+            'page' => ['sometimes', 'int', 'min:1'],
+            'itemsByPage' => ['sometimes', 'int', 'min:4'],
+            'excludeIds' => ['sometimes', 'array'],
+            'q' => ['sometimes', 'string', 'min:3', 'max:60'],
+            'searchBy' => ['required_with:q', 'string'],
+        ];
     }
 
     abstract public function validationRules(bool $update = false): array;
