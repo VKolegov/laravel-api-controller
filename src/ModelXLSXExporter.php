@@ -10,7 +10,11 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\BaseWriter;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\HeaderUtils;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use voku\helper\ASCII;
 
 class ModelXLSXExporter
 {
@@ -144,6 +148,10 @@ class ModelXLSXExporter
     public function getResponse(?string $filename = null): StreamedResponse
     {
 
+        if ($this->getQueryBuilder()->count() === 0) {
+            throw new HttpException(400, 'No exportable data found, change parameters?');
+        }
+
         $spreadsheet = $this->fillOutSpreadsheet();
 
         /**
@@ -163,18 +171,26 @@ class ModelXLSXExporter
         }
 
         $filename = $filename ?? $this->getFileName();
+        $filenameFallback = str_replace('%', '', ASCII::to_ascii($filename));
 
-        $response = response()->streamDownload(
+        $headers = [
+            'Content-disposition' => HeaderUtils::makeDisposition(
+                ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+                $filename,
+                $filenameFallback
+            ),
+            'Content-Type' => $contentType,
+        ];
+
+        return new StreamedResponse(
             function () use ($document) {
                 $document->save(
                     "php://output"
                 );
             },
-            $filename
+            200,
+            $headers
         );
-
-        $response->headers->set('Content-Type', $contentType);
-        return $response;
     }
 
     /**
