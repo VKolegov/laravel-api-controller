@@ -15,7 +15,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 trait HandlesAPIRequest
 {
@@ -373,7 +372,9 @@ trait HandlesAPIRequest
     {
         try {
             /** @var Model $entity */
-            $entity = $entityModelClass::create($attributes);
+            $entity = $entityModelClass::create(
+                $this->getPureAttributes($attributes, $relationships)
+            );
 
             if (!empty($relationships))
                 $this->updateRelationships($entity, $attributes, $relationships);
@@ -440,6 +441,28 @@ trait HandlesAPIRequest
         }
     }
 
+
+    protected function getPureAttributes(array $attributes, array $relationships): array
+    {
+
+        if (empty($relationships)) {
+            return $attributes;
+        }
+
+        $relationshipsField = [];
+
+        foreach ($relationships as $relationship) {
+            $attributeName = $relationship['attributeName'] ?? $relationship['name'];
+
+            $relationshipsField[] = $attributeName;
+        }
+
+        return array_filter(
+            $attributes,
+            fn($v, $k) => !in_array($k, $relationshipsField),
+            ARRAY_FILTER_USE_BOTH
+        );
+    }
 
     // TODO: Tests, refactoring
 
@@ -528,7 +551,8 @@ trait HandlesAPIRequest
 
     /**
      * @param Model|string $entityModel Model entity or model class
-     * @param int|string $id Model ID
+     * @param int|string|null $id Model ID
+     * @param string|null $getByField
      * @return Model
      * @throws \Exception
      */
