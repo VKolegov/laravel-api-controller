@@ -412,7 +412,9 @@ trait HandlesAPIRequest
                 throw new \Exception("Entity should exist");
             }
 
-            $entity->fill($newAttributes);
+            $entity->fill(
+                $this->getPureAttributes($newAttributes, $newRelationships)
+            );
 
             if (!$entity->save()) {
                 return $this->errorResponse(
@@ -566,9 +568,9 @@ trait HandlesAPIRequest
             $entity = $id;
         } elseif (is_string($entityModel) && isset($id)) {
             if (!$getByField) {
-                $entity = $entityModel::findOrFail($id);
+                $entity = $entityModel::query()->findOrFail($id);
             } else {
-                $entity = $entityModel::where($getByField, $id)->first();
+                $entity = $entityModel::query()->where($getByField, $id)->first();
 
                 if (!$entity) {
                     throw (new ModelNotFoundException)->setModel(
