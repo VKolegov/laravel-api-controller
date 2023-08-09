@@ -2,6 +2,7 @@
 
 namespace VKolegov\LaravelAPIController;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +16,22 @@ class ResponseBuilder
      */
     private $mappingCallback = null;
     private int $maxEntities = 1000;
+
+
+    public function getEntityResponse($entity): JsonResponse
+    {
+        return new JsonResponse(
+            $this->getMappedEntity($entity)
+        );
+    }
+
+    public function getMappedEntity(Model $entity): array
+    {
+        // Если задан метод, который выполняет маппинг сущности в списке
+        return is_callable($this->mappingCallback)
+            ? call_user_func($this->mappingCallback, $entity)
+            : $entity->jsonSerialize();
+    }
 
     /**
      * @param Request $r
@@ -120,5 +137,34 @@ class ResponseBuilder
         $offset = ($page - 1) * $itemsByPage;
 
         return $query->take($itemsByPage)->skip($offset);
+    }
+
+
+    public function errorResponse(string $comment, array $errorMessages = [], int $code = 500): JsonResponse
+    {
+        return new JsonResponse(
+            [
+                'success' => false,
+                'comment' => $comment,
+                'errors' => $errorMessages,
+            ], $code
+        );
+    }
+
+    public function successfulEntityModificationResponse(
+        $entity,
+        $code = 200
+    ): JsonResponse
+    {
+
+        $mappedEntity = $this->getMappedEntity($entity);
+
+        return new JsonResponse(
+            [
+                'success' => true,
+                'entity' => $mappedEntity,
+            ],
+            $code
+        );
     }
 }
