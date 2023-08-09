@@ -30,13 +30,6 @@ trait HandlesAPIRequest
         return $mappedEntity;
     }
 
-    protected function getEntity($entityModel, string $id = null, callable $mapMethod = null): JsonResponse
-    {
-        return new JsonResponse(
-            $this->getMappedEntity($entityModel, $id, $mapMethod)
-        );
-    }
-
     // TODO: Tests
     protected function updateEntity($entityModel,
                                     array $newAttributes = [],
