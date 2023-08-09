@@ -16,11 +16,10 @@ use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 use VKolegov\LaravelAPIController\Traits\ExportsFilteredEntities;
-use VKolegov\LaravelAPIController\Traits\HandlesAPIRequest;
 
 abstract class AbstractAPIController extends Controller
 {
-    use HandlesAPIRequest, ExportsFilteredEntities;
+    use ExportsFilteredEntities;
 
     public const MODEL_CLASS = ""; // should be Illuminate\Database\Eloquent\Model class name
     public const GET_MODEL_BY = null;
@@ -96,7 +95,7 @@ abstract class AbstractAPIController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (Throwable $e) {
-            return $this->errorResponse(
+            return $this->responseBuilder->errorResponse(
                 $e->getMessage(),
                 [],
                 400
@@ -233,8 +232,7 @@ abstract class AbstractAPIController extends Controller
      */
     public function delete($entity): JsonResponse
     {
-        $model = $this->getModel(
-            static::MODEL_CLASS,
+        $model = $this->repository->get(
             $entity,
             static::GET_MODEL_BY,
         );
@@ -242,7 +240,31 @@ abstract class AbstractAPIController extends Controller
         $this->entityAccessHook($model);
         $this->entityUpdateAccessHook($model);
 
-        return $this->deleteEntity($model);
+        try {
+
+            \DB::beginTransaction();
+
+            $this->repository->delete($entity);
+
+            \DB::commit();
+
+            // TODO: comply with successfulEntityModificationResponse
+            return new JsonResponse([
+                'success' => true,
+                'id' => $model->getKey(),
+                'deletedEntity' => $model,
+            ]);
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+
+            \Log::error($e->getTraceAsString());
+
+            return $this->responseBuilder->errorResponse(
+                $e->getMessage(),
+                [],
+                400
+            );
+        }
     }
 
     /**
