@@ -29,6 +29,9 @@ abstract class AbstractAPIController extends Controller
     public const EAGER_LOAD_RELATIONSHIPS = [];
     public const EXPORT_EAGER_LOAD_RELATIONSHIPS = [];
 
+    protected ModelRepository $repository;
+    protected ResponseBuilder $responseBuilder;
+
     /**
      * @throws \Exception
      */
@@ -37,29 +40,17 @@ abstract class AbstractAPIController extends Controller
         if (empty(static::MODEL_CLASS) || static::MODEL_CLASS === Model::class) {
             throw new \Exception("API Controller: MODEL_CLASS is not defined");
         }
+
+        $this->repository = new ModelRepository(static::MODEL_CLASS);
+        $this->responseBuilder = new ResponseBuilder();
     }
 
     public function getQuery(Request $r, array $relationships)
     {
-        if (count(static::FILTER_FIELDS) > 0) {
-            $query = $this->filterQuery(
-                static::MODEL_CLASS,
-                $r,
-                static::FILTER_FIELDS,
-            );
-        } else {
-            /** @var Model $modelClass */
-            $modelClass = static::MODEL_CLASS;
-            $query = $modelClass::query();
-        }
-
-        $this->applySorting($r, $query);
-
-        if (count($relationships) > 0) {
-            $query->with($relationships);
-        }
-
-        return $query;
+        return $this->repository
+            ->setEagerLoadingRelationShips($relationships)
+            ->setAllowedFilteringFields(static::FILTER_FIELDS)
+            ->getQueryFromRequest($r);
     }
 
     public function index(Request $r): JsonResponse
@@ -70,12 +61,9 @@ abstract class AbstractAPIController extends Controller
 
         $query = $this->getQuery($r, $this->relationshipsToEagerLoad());
 
-        return $this->getEntitiesResponse(
-            $query,
-            $r,
-            [],
-            [$this, 'mapEntity']
-        );
+        return $this->responseBuilder
+            ->setMappingCallback([$this, 'mapEntity'])
+            ->getEntitiesResponse($r, $query);
     }
 
     /**
@@ -296,8 +284,6 @@ abstract class AbstractAPIController extends Controller
             'page' => ['sometimes', 'int', 'min:1'],
             'itemsByPage' => ['sometimes', 'int', 'min:4'],
             'excludeIds' => ['sometimes', 'array'],
-            'q' => ['sometimes', 'string', 'min:3', 'max:60'],
-            'searchBy' => ['required_with:q', 'string'],
         ];
     }
 
