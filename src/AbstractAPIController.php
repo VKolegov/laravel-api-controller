@@ -79,7 +79,9 @@ abstract class AbstractAPIController extends Controller
 
         $this->entityAccessHook($model);
 
-        return $this->getEntity($model, null, [$this, 'mapSingleEntity']);
+        return $this->responseBuilder
+            ->setMappingCallback([$this, 'mapSingleEntity'])
+            ->getEntityResponse($model);
     }
 
     /**
