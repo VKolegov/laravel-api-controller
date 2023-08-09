@@ -70,4 +70,83 @@ class ModelRepository
     {
         $this->databaseFieldCase = $databaseFieldCase;
     }
+
+
+    public function create(array $attributes = [], array $relationships = []): Model
+    {
+        /** @var Model $entity */
+        $entity = $this->modelClass::query()->create(
+            $this->getPureAttributes($attributes, $relationships)
+        );
+
+        if (!empty($relationships)) {
+            $this->updateRelationships($entity, $attributes, $relationships);
+        }
+
+        return $entity;
+    }
+
+
+    protected function getPureAttributes(array $attributes, array $relationships): array
+    {
+
+        if (empty($relationships)) {
+            return $attributes;
+        }
+
+        $relationshipsField = [];
+
+        foreach ($relationships as $relationship) {
+            $attributeName = $relationship['attributeName'] ?? $relationship['name'];
+
+            $relationshipsField[] = $attributeName;
+        }
+
+        return array_filter(
+            $attributes,
+            fn($v, $k) => !in_array($k, $relationshipsField),
+            ARRAY_FILTER_USE_BOTH
+        );
+    }
+
+    /**
+     * @param Model $entity Сущность, для которой обновляем отношения
+     * @param array $attributes Аттрибуты, в которых содержатся новые данные об отношениях
+     * Пример: [...,'comments' => ['text' => 'New comment', 'user_id' => 255],...]
+     * @param array $relationships Описание отношений и как с ними работать.
+     * Каждый элемент массива описывает одно отношение
+     * Параметры:
+     * - attributeName - имя аттрибута в котором содержатся данные отношения
+     * - name - имя отношения
+     * - saveMethod - каким методом обновить отношение
+     * ( доступные методы: https://laravel.com/docs/6.x/eloquent-relationships#inserting-and-updating-related-models)
+     * - clearBeforeSaving - очистить ли перед обновлением старое отношение
+     */
+    protected function updateRelationships(Model $entity, array $attributes = [], array $relationships = [])
+    {
+        foreach ($relationships as $relationship) {
+
+            $attributeName = $relationship['attributeName'] ?? $relationship['name'];
+
+            $relationshipName = $relationship['name'];
+            $saveMethod = $relationship['saveMethod'];
+            $callOnModel = $relationship['callOnModel'] ?? false;
+
+            if (isset($attributes[$attributeName])) {
+
+                if (isset($relationship['clearBeforeSaving']) && $relationship['clearBeforeSaving']) {
+                    $entity->$relationshipName()->delete();
+                }
+
+                $relationshipData = $attributes[$attributeName];
+                if ($callOnModel) {
+                    $entity->$saveMethod($relationshipData);
+                } else {
+                    $entity->$relationshipName()->$saveMethod($relationshipData);
+                }
+
+                $entity->load($relationshipName);
+            }
+        }
+    }
 }
