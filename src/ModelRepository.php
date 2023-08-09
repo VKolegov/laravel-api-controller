@@ -103,16 +103,81 @@ class ModelRepository
 
     public function create(array $attributes = [], array $relationships = []): Model
     {
-        /** @var Model $entity */
-        $entity = $this->modelClass::query()->create(
-            $this->getPureAttributes($attributes, $relationships)
-        );
+        $modelName = 'Сущность ' . $this->modelClass;
 
-        if (!empty($relationships)) {
-            $this->updateRelationships($entity, $attributes, $relationships);
+        try {
+
+            /** @var Model $entity */
+            $entity = $this->modelClass::query()->create(
+                $this->getPureAttributes($attributes, $relationships)
+            );
+
+            if (!empty($relationships)) {
+                $this->updateRelationships($entity, $attributes, $relationships);
+            }
+
+            return $entity;
+        } catch (\Throwable $e) {
+            throw new Exception(
+                "Не удалось создать $modelName: " . $e->getMessage(),
+                $e->getCode(),
+                $e
+            );
         }
+    }
 
-        return $entity;
+    /**
+     * @param Model|int|string $id
+     * @param array $newAttributes
+     * @param array $newRelationships
+     * @return Model
+     * @throws Exception
+     */
+    public function update(
+        $id,
+        array $newAttributes = [],
+        array $newRelationships = []
+    ): Model
+    {
+
+        $modelName = 'Сущность ' . $this->modelClass;
+
+        try {
+            $entity = $this->get($id);
+
+            $id = $entity->getKey();
+
+            if (!$id) {
+                throw new Exception("Entity should exist");
+            }
+
+            $entity->fill(
+                $this->getPureAttributes($newAttributes, $newRelationships)
+            );
+
+            if (!$entity->save()) {
+                throw new Exception(
+                    "Не удалось сохранить $modelName #$id"
+                );
+            }
+
+            if (!empty($newRelationships)) {
+
+                if (!is_array($newRelationships) || !is_array($newRelationships[0])) {
+                    throw new InvalidArgumentException("\$newRelationShips should be 2D array");
+                }
+
+                $this->updateRelationships($entity, $newAttributes, $newRelationships);
+            }
+
+            return $entity;
+        } catch (\Throwable $e) {
+            throw new Exception(
+                "Не удалось обновить $modelName #$id: " . $e->getMessage(),
+                $e->getCode(),
+                $e
+            );
+        }
     }
 
 
