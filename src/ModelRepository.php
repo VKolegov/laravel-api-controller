@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 
@@ -174,6 +175,35 @@ class ModelRepository
         } catch (\Throwable $e) {
             throw new Exception(
                 "Не удалось обновить $modelName #$id: " . $e->getMessage(),
+                $e->getCode(),
+                $e
+            );
+        }
+    }
+
+    // TODO: Tests
+    /**
+     * @param Model|string|int $id
+     * @return bool
+     * @throws Exception
+     */
+    public function delete($id): bool
+    {
+        $modelName = 'Сущность ' . $this->modelClass;
+        try {
+
+        $entity = $this->get($id);
+        $id = $entity->getKey();
+
+        // TODO: Lang
+            if ($entity->delete()) {
+                return true;
+            } else {
+                throw new Exception("Не удалось удалить $modelName $id");
+            }
+        } catch (Exception $e) {
+            throw new Exception(
+                "Не удалось удалить $modelName #$id: " . $e->getMessage(),
                 $e->getCode(),
                 $e
             );
