@@ -106,13 +106,12 @@ abstract class AbstractAPIController extends Controller
 
             \DB::beginTransaction();
 
-            $createEntityResponse = $this->createEntity(
-                static::MODEL_CLASS,
-                $attributes,
-                static::MODEL_RELATIONSHIPS,
-                [$this, 'mapSingleEntity'],
-                $entity,
-            );
+
+            $entity = $this->repository->create($attributes, static::MODEL_RELATIONSHIPS);
+
+            $createEntityResponse = $this->responseBuilder
+                ->setMappingCallback([$this, 'mapSingleEntity'])
+                ->successfulEntityModificationResponse($entity, 201);
 
             $this->postCreateHook($entity, $createEntityResponse);
 
@@ -128,7 +127,7 @@ abstract class AbstractAPIController extends Controller
 
             \Log::error($e->getTraceAsString());
 
-            return $this->errorResponse(
+            return $this->responseBuilder->errorResponse(
                 $e->getMessage(),
                 [],
                 400
@@ -180,7 +179,7 @@ abstract class AbstractAPIController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (Throwable $e) {
-            return $this->errorResponse(
+            return $this->responseBuilder->errorResponse(
                 $e->getMessage(),
                 [],
                 400
@@ -212,7 +211,7 @@ abstract class AbstractAPIController extends Controller
 
             \Log::error($e->getTraceAsString());
 
-            return $this->errorResponse(
+            return $this->responseBuilder->errorResponse(
                 $e->getMessage(),
                 [],
                 400
