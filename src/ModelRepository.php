@@ -5,6 +5,7 @@ namespace VKolegov\LaravelAPIController;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -71,6 +72,34 @@ class ModelRepository
         $this->databaseFieldCase = $databaseFieldCase;
     }
 
+    /**
+     * @param Model|int|string|null $id Model ID
+     * @param string|null $getByField
+     * @return Model
+     * @throws Exception
+     */
+    public function get($id = null, ?string $getByField = null): Model
+    {
+        /** @var Model $entity */
+
+        if ($id instanceof Model) {
+            return $id;
+        }
+
+        if (!$getByField) {
+            $entity = $this->modelClass::query()->findOrFail($id);
+        } else {
+            $entity = $this->modelClass::query()->where($getByField, $id)->first();
+
+            if (!$entity) {
+                throw (new ModelNotFoundException)->setModel(
+                    $this->modelClass, $id
+                );
+            }
+        }
+
+        return $entity;
+    }
 
     public function create(array $attributes = [], array $relationships = []): Model
     {
