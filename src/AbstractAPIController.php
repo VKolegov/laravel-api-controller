@@ -48,7 +48,9 @@ abstract class AbstractAPIController extends Controller
                 static::FILTER_FIELDS,
             );
         } else {
-            $query = (static::MODEL_CLASS)::query();
+            /** @var Model $modelClass */
+            $modelClass = static::MODEL_CLASS;
+            $query = $modelClass::query();
         }
 
         $this->applySorting($r, $query);
@@ -66,7 +68,7 @@ abstract class AbstractAPIController extends Controller
             $this->entitiesRequestValidationRules()
         );
 
-        $query = $this->getQuery($r, static::EAGER_LOAD_RELATIONSHIPS);
+        $query = $this->getQuery($r, $this->relationshipsToEagerLoad());
 
         return $this->getEntitiesResponse(
             $query,
@@ -280,13 +282,8 @@ abstract class AbstractAPIController extends Controller
 
         $this->exportRequest = $r;
 
-        $relationships = array_merge(
-            static::EAGER_LOAD_RELATIONSHIPS, static::EXPORT_EAGER_LOAD_RELATIONSHIPS
-        );
-        $relationships = array_unique($relationships);
-
         return $this->exportToXLSX(
-            $this->getQuery($r, $relationships)
+            $this->getQuery($r, $this->relationshipsToEagerLoadForExport())
         );
     }
 
@@ -324,8 +321,10 @@ abstract class AbstractAPIController extends Controller
     public function mapSingleEntity(Model $entity): array
     {
 
-        if (count(static::EAGER_LOAD_RELATIONSHIPS) > 0) {
-            $entity->load(static::EAGER_LOAD_RELATIONSHIPS);
+        $relationships = $this->relationshipsToEagerLoad();
+
+        if (count($relationships) > 0) {
+            $entity->load($relationships);
         }
 
         return $entity->jsonSerialize();
@@ -339,5 +338,16 @@ abstract class AbstractAPIController extends Controller
     protected function entityUpdateAccessHook(Model $entity): void
     {
 
+    }
+
+
+    public function relationshipsToEagerLoad(): array
+    {
+        return static::EAGER_LOAD_RELATIONSHIPS;
+    }
+
+    public function relationshipsToEagerLoadForExport(): array
+    {
+        return static::EXPORT_EAGER_LOAD_RELATIONSHIPS;
     }
 }
