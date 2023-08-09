@@ -161,8 +161,7 @@ abstract class AbstractAPIController extends Controller
      */
     public function update($entity, Request $r): JsonResponse
     {
-        $model = $this->getModel(
-            static::MODEL_CLASS,
+        $model = $this->repository->get(
             $entity,
             static::GET_MODEL_BY,
         );
@@ -189,13 +188,11 @@ abstract class AbstractAPIController extends Controller
 
             \DB::beginTransaction();
 
-            $updateEntityResponse = $this->updateEntity(
-                $model,
-                $newAttributes,
-                static::MODEL_RELATIONSHIPS,
-                null,
-                [$this, 'mapSingleEntity']
-            );
+            $entity = $this->repository->update($model, $newAttributes, static::MODEL_RELATIONSHIPS);
+
+            $updateEntityResponse = $this->responseBuilder
+                ->setMappingCallback([$this, 'mapSingleEntity'])
+                ->successfulEntityModificationResponse($entity);
 
             $this->postUpdateHook($model, $updateEntityResponse);
 
