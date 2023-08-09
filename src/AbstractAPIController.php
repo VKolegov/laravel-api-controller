@@ -67,15 +67,13 @@ abstract class AbstractAPIController extends Controller
     }
 
     /**
+     * @param int|string|Model $entity
+     * @return JsonResponse
      * @throws Exception
      */
     public function show($entity): JsonResponse
     {
-        $model = $this->getModel(
-            static::MODEL_CLASS,
-            $entity,
-            static::GET_MODEL_BY,
-        );
+        $model = $this->repository->get($entity, static::GET_MODEL_BY);
 
         $this->entityAccessHook($model);
 
