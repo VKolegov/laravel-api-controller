@@ -7,14 +7,17 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 
+/**
+ * @template T of \Illuminate\Database\Eloquent\Model
+ * @phpstan-template T of \Illuminate\Database\Eloquent\Model
+ */
 class ModelRepository
 {
     /**
-     * @var string|Model
+     * @var string|Model|T
      */
     private string $modelClass;
     private array $relationshipsToEagerLoad = [];
@@ -57,7 +60,7 @@ class ModelRepository
 
     /**
      * @param array $allowedFilteringFields
-     * @return ModelRepository
+     * @return ModelRepository<T>
      */
     public function setAllowedFilteringFields(array $allowedFilteringFields): ModelRepository
     {
@@ -74,14 +77,14 @@ class ModelRepository
     }
 
     /**
-     * @param Model|int|string|null $id Model ID
+     * @param T|Model|int|string|null $id Model ID
      * @param string|null $getByField
-     * @return Model
+     * @return T|Model
      * @throws Exception
      */
     public function get($id = null, ?string $getByField = null): Model
     {
-        /** @var Model $entity */
+        /** @var T|Model $entity */
 
         if ($id instanceof Model) {
             return $id;
@@ -108,7 +111,7 @@ class ModelRepository
 
         try {
 
-            /** @var Model $entity */
+            /** @var T|Model $entity */
             $entity = $this->modelClass::query()->create(
                 $this->getPureAttributes($attributes, $relationships)
             );
@@ -128,10 +131,10 @@ class ModelRepository
     }
 
     /**
-     * @param Model|int|string $id
+     * @param T|Model|int|string $id
      * @param array $newAttributes
      * @param array $newRelationships
-     * @return Model
+     * @return T|Model
      * @throws Exception
      */
     public function update(
@@ -182,8 +185,9 @@ class ModelRepository
     }
 
     // TODO: Tests
+
     /**
-     * @param Model|string|int $id
+     * @param T|Model|string|int $id
      * @return bool
      * @throws Exception
      */
@@ -192,10 +196,10 @@ class ModelRepository
         $modelName = 'Сущность ' . $this->modelClass;
         try {
 
-        $entity = $this->get($id);
-        $id = $entity->getKey();
+            $entity = $this->get($id);
+            $id = $entity->getKey();
 
-        // TODO: Lang
+            // TODO: Lang
             if ($entity->delete()) {
                 return true;
             } else {
@@ -234,7 +238,7 @@ class ModelRepository
     }
 
     /**
-     * @param Model $entity Сущность, для которой обновляем отношения
+     * @param T|Model $entity Сущность, для которой обновляем отношения
      * @param array $attributes Аттрибуты, в которых содержатся новые данные об отношениях
      * Пример: [...,'comments' => ['text' => 'New comment', 'user_id' => 255],...]
      * @param array $relationships Описание отношений и как с ними работать.
