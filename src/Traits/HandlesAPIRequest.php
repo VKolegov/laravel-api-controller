@@ -38,37 +38,6 @@ trait HandlesAPIRequest
     }
 
     // TODO: Tests
-    protected function createEntity(string   $entityModelClass,
-                                    array    $attributes = [], array $relationships = [],
-                                    callable $mappingCallback = null,
-                                    Model    &$entity = null
-    ): JsonResponse
-    {
-        try {
-            /** @var Model $entity */
-            $entity = $entityModelClass::create(
-                $this->getPureAttributes($attributes, $relationships)
-            );
-
-            if (!empty($relationships))
-                $this->updateRelationships($entity, $attributes, $relationships);
-
-            return $this->successfulEntityModificationResponse(
-                $entity,
-                $mappingCallback,
-                201
-            );
-
-        } catch (Exception $e) {
-            Log::error($e);
-
-            return $this->errorResponse(
-                "Внутренняя ошибка при создании новой сущности. {$e->getMessage()}"
-            );
-        }
-    }
-
-    // TODO: Tests
     protected function updateEntity($entityModel,
                                     array $newAttributes = [],
                                     array $newRelationships = [],
@@ -259,6 +228,13 @@ trait HandlesAPIRequest
         return $entity;
     }
 
+    /**
+     * @param string $comment
+     * @param array $errorMessages
+     * @param int $code
+     * @return JsonResponse
+     * @deprecated
+     */
     protected function errorResponse(string $comment, array $errorMessages = [], int $code = 500): JsonResponse
     {
         return new JsonResponse(
