@@ -6,203 +6,15 @@
 
 namespace VKolegov\LaravelAPIController\Traits;
 
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
+use InvalidArgumentException;
+use Log;
 
 trait HandlesAPIRequest
 {
-
-    // TODO: Tests
-    /**
-     * @param $entityQualifier mixed Либо имя класса, либо отношение (Eloquent Relation)
-     * @param Request $r
-     * @param array $filterOptions
-     * @param callable|null $mappingCallback
-     * @param string|null $fieldCase Регистр полей модели
-     * @return JsonResponse
-     */
-    protected function getEntitiesResponse(
-        $entityQualifier,
-        Request $r,
-        array $filterOptions = [],
-        callable $mappingCallback = null,
-        string $fieldCase = null
-    ): JsonResponse
-    {
-        // Сначала считаем что вообще есть в базе
-        // Подсчёт через getCountForPagination() считает сколько всего записей попало в фильтр
-        // Без учета разбиения на страницы ( e.g. take() и offset())
-        $query = $this->getEntitiesQuery($entityQualifier, $r, $filterOptions, $fieldCase);
-
-        $count = $query->count();
-
-
-        // Если по нулям - дальше даже не утруждаемся
-        if ($count === 0) {
-            return new JsonResponse(
-                $this->getEntitiesResponseArray(collect(), 0)
-            );
-        }
-
-
-        // Если от нас требуется только подсчет
-        if ((bool)$r->get('onlyCount') === true) {
-            return new JsonResponse(
-                $this->getEntitiesResponseArray(collect(), $count)
-            );
-        }
-
-        // Пагинация
-        $query = $this->paginateQuery($query, $r);
-        $entities = $query->get();
-
-        return new JsonResponse(
-            $this->getEntitiesResponseArray($entities, $count, $mappingCallback)
-        );
-    }
-
-    /**
-     * Формирует Query Builder с учетом запроса
-     * @param string|Builder|Relation $entityQualifier Либо имя класса, либо Query Builder, либо отношение (Eloquent Relation)
-     * @param Request $r
-     * @param array $filterOptions
-     * @param string|null $fieldCase Регистр полей модели
-     * @return Relation|Builder|\Jenssegers\Mongodb\Helpers\EloquentBuilder
-     */
-    protected function getEntitiesQuery(
-        $entityQualifier,
-        Request $r,
-        array $filterOptions = [],
-        string $fieldCase = null
-    )
-    {
-        /** @var Builder $query */
-
-        if (
-            $entityQualifier instanceof Relation
-            || $entityQualifier instanceof \Illuminate\Database\Eloquent\Builder
-            || $entityQualifier instanceof Builder
-        ) {
-            $query = $entityQualifier->where($filterOptions);
-        } else {
-            /**
-             * @var Model $entityQualifier
-             */
-            $query = $entityQualifier::query()->where($filterOptions);
-        }
-
-        if (!$fieldCase) {
-            $model = $query->getModel();
-
-            if ($model::$snakeAttributes) {
-                $fieldCase = 'snake';
-            } else {
-                $fieldCase = 'camel';
-            }
-        }
-
-        $this->applySorting($r, $query, $fieldCase);
-
-        // Исключаем айдишники
-        $excludeIds = $r->get('excludeIds', []);
-        if ($excludeIds) {
-            $table = $query->getModel()->getTable();
-            $key = $query->getModel()->getKeyName();
-            $column = "$table.$key"; // e.g. products.id
-            $query->whereNotIn($column, $excludeIds);
-        }
-
-        return $query;
-    }
-
-    /**
-     * @param \Illuminate\Http\Request $r
-     * @param Builder|\Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Relations\Relation $query
-     * @param string|null $fieldCase
-     * @return void
-     */
-    protected function applySorting(Request $r, $query, ?string $fieldCase = null)
-    {
-        $sortBy = $r->get('sortBy');
-
-        if ($sortBy) {
-            $sortOrder = $r->get('descending', true) == true ? 'desc' : 'asc';
-
-            switch ($fieldCase) {
-                case 'snake':
-                    $sortBy = Str::snake($sortBy);
-                    break;
-                case 'camel':
-                    $sortBy = Str::camel($sortBy);
-                    break;
-                case 'studly':
-                    $sortBy = Str::studly($sortBy);
-                    break;
-                default:
-                    break;
-            }
-
-            $query->orderBy($sortBy, $sortOrder);
-        }
-    }
-
-    /**
-     * @param Relation|Builder|\Jenssegers\Mongodb\Helpers\EloquentBuilder $query
-     * @param Request $r
-     * @param int|null $page Optional override
-     * @param int|null $itemsByPage Optional override
-     * @return Relation|Builder|\Jenssegers\Mongodb\Helpers\EloquentBuilder
-     */
-    protected function paginateQuery($query, Request $r, int $page = null, int $itemsByPage = null)
-    {
-        if (!$itemsByPage) {
-            $itemsByPage = (int)$r->get('itemsByPage', 20);
-            $itemsByPage = min($itemsByPage, 1000); // Жестко ограничиваем тысячей
-        }
-        if (!$page) {
-            $page = (int)$r->get('page', 1);
-        }
-
-        $offset = ($page - 1) * $itemsByPage;
-
-        return $query->take($itemsByPage)->skip($offset);
-    }
-
-    protected function getEntitiesResponseArray(
-        iterable $entities,
-        ?int     $count = null,
-        callable $mappingCallback = null
-    ): array
-    {
-
-        $mapping = null;
-
-        if (is_callable($mappingCallback)) {
-            // Если задан метод, который выполняет маппинг сущности
-            $mapping = $mappingCallback;
-        }
-
-        if (is_callable($mapping)) {
-            if ($entities instanceof Collection) {
-                $entities = $entities->map($mapping);
-            }
-            if (is_array($entities)) {
-                $entities = array_map($mapping, $entities);
-            }
-        }
-
-        return [
-            'count' => $count ?? count($entities),
-            'entities' => $entities
-        ];
-    }
 
     protected function getMappedEntity($entityModel, string $id = null, callable $mapMethod = null)
     {
@@ -223,144 +35,6 @@ trait HandlesAPIRequest
         return new JsonResponse(
             $this->getMappedEntity($entityModel, $id, $mapMethod)
         );
-    }
-
-    protected function filterValidationRules(array $fields): array
-    {
-        $rules = [];
-        foreach ($fields as $field => $type) {
-
-            switch ($type) {
-                case 'bool':
-                    $rules[$field] = ['boolean'];
-                    break;
-                case 'string':
-                    $rules[$field] = ['string', 'min:3', 'max:255'];
-                    break;
-                case 'select':
-                    $rules[$field] = ['sometimes', 'array', 'max:20'];
-                    $rules["$field.*"] = ['alpha_dash', 'min:1', 'max:100'];
-                    break;
-                case 'num_range':
-                    $rules["{$field}_min"] = ['int'];
-                    $rules["{$field}_max"] = ['int', "gte:{$field}_min"];
-                    break;
-                case 'date_range':
-                    $rules["{$field}_min"] = ['date'];
-                    $rules["{$field}_max"] = ['date', "gte:{$field}_min"];
-                    break;
-
-            }
-
-        }
-        return $rules;
-    }
-
-    /**
-     * @param string|\Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Relations\Relation $modelName
-     * @param \Illuminate\Http\Request $r
-     * @param array $fields key - field to filter by, value = field type
-     * @return \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Relations\Relation
-     * @throws \Exception
-     */
-    protected function filterQuery($modelName, Request $r, array $fields)
-    {
-        /** @var \Illuminate\Database\Eloquent\Builder $query */
-        if (is_a($modelName, Model::class, true)) {
-            $query = $modelName::query();
-        } else if (
-            $modelName instanceof Builder
-            || $modelName instanceof \Illuminate\Database\Eloquent\Builder
-            || $modelName instanceof Relation
-        ) {
-            $query = $modelName;
-        } else {
-            throw new \Exception(
-                "modelName is nor Model, nor Query Builder, nor Relation: " . get_class($modelName)
-            );
-        }
-
-        // To support filtering by embedded mongodb fields, like 'store.id'
-        if ($query->getModel()->getConnection()->getDriverName() !== 'mongodb') {
-            $inputFields = $r->validate(
-                $this->filterValidationRules($fields)
-            );
-        } else {
-            $inputFields = $r->all();
-        }
-
-        if (empty($inputFields)) {
-            return $query;
-        }
-
-        foreach ($fields as $field => $type) {
-
-            $fieldQ = $inputFields[$field] ?? "";
-
-            switch ($type) {
-                case 'bool':
-
-                    $fieldQ = $inputFields[$field] ?? null;
-                    if ($fieldQ === null) break;
-
-                    $query->where($field, $fieldQ);
-                    break;
-                case 'string':
-
-                    if (!$fieldQ) break;
-
-                    $query->where($field, 'like', "%$fieldQ%");
-                    break;
-                case 'select':
-
-                    if (!is_array($fieldQ)) break;
-
-                    $query->where(function ($q) use ($field, $fieldQ) {
-
-                        foreach ($fieldQ as $selectValue) {
-                            $q->orWhere($field, '=', $selectValue);
-                        }
-
-                    });
-
-                    break;
-
-                case 'num_range':
-
-                    $fieldMin = $inputFields["{$field}_min"] ?? null;
-                    $fieldMax = $inputFields["{$field}_max"] ?? null;
-
-                    if (!is_null($fieldMin)) {
-                        $query->where($field, '>=', $fieldMin);
-                    }
-
-                    if (!is_null($fieldMax)) {
-                        $query->where($field, '<=', $fieldMax);
-                    }
-                    break;
-
-                case 'date_range':
-
-                    $fieldMin = $inputFields["{$field}_min"] ?? null;
-                    $fieldMax = $inputFields["{$field}_max"] ?? null;
-
-                    if (!is_null($fieldMin)) {
-                        $minDate = Carbon::parse($fieldMin)->startOfDay();
-                        $query->where($field, '>=', $minDate);
-                    }
-
-                    if (!is_null($fieldMax)) {
-                        $maxDate = Carbon::parse($fieldMax)->endOfDay();
-                        $query->where($field, '<=', $maxDate);
-                    }
-
-                    break;
-            }
-
-        }
-
-        return $query;
-
     }
 
     // TODO: Tests
@@ -385,8 +59,8 @@ trait HandlesAPIRequest
                 201
             );
 
-        } catch (\Exception $e) {
-            \Log::error($e);
+        } catch (Exception $e) {
+            Log::error($e);
 
             return $this->errorResponse(
                 "Внутренняя ошибка при создании новой сущности. {$e->getMessage()}"
@@ -409,7 +83,7 @@ trait HandlesAPIRequest
         try {
 
             if (!$id) {
-                throw new \Exception("Entity should exist");
+                throw new Exception("Entity should exist");
             }
 
             $entity->fill(
@@ -418,13 +92,13 @@ trait HandlesAPIRequest
 
             if (!$entity->save()) {
                 return $this->errorResponse(
-                    "Не удалось обновить {$modelName} #{$id}"
+                    "Не удалось обновить $modelName #$id"
                 );
             }
 
             if (!empty($newRelationships)) {
                 if (!is_array($newRelationships) || !is_array($newRelationships[0])) {
-                    throw new \InvalidArgumentException("\$newRelationShips should be 2D array");
+                    throw new InvalidArgumentException("\$newRelationShips should be 2D array");
                 }
                 $this->updateRelationships($entity, $newAttributes, $newRelationships);
             }
@@ -434,10 +108,10 @@ trait HandlesAPIRequest
                 $mappingCallback
             );
 
-        } catch (\Exception $e) {
-            \Log::error($e);
+        } catch (Exception $e) {
+            Log::error($e);
             return $this->errorResponse(
-                "Не удалось обновить {$modelName} #{$id}",
+                "Не удалось обновить $modelName #$id",
                 [$e->getMessage()]
             );
         }
@@ -517,7 +191,7 @@ trait HandlesAPIRequest
      * @param string|int|null $id
      * @param string|null $modelName
      * @return JsonResponse
-     * @throws \Exception
+     * @throws Exception
      */
     protected function deleteEntity($entityModel, $id = null, string $modelName = null): JsonResponse
     {
@@ -533,18 +207,18 @@ trait HandlesAPIRequest
                 return new JsonResponse([
                     'success' => true,
                     'id' => $id,
-                    'deletedEntity' => $entity
+                    'deletedEntity' => $entity,
                 ]);
             } else {
                 return $this->errorResponse(
-                    "Не удалось удалить {$modelName} #{$id}"
+                    "Не удалось удалить $modelName #$id"
                 );
             }
-        } catch (\Exception $e) {
-            \Log::error($e);
+        } catch (Exception $e) {
+            Log::error($e);
 
             return $this->errorResponse(
-                "Ошибка при удалении {$modelName} #{$id}: " . $e->getMessage()
+                "Ошибка при удалении $modelName #$id: " . $e->getMessage()
             );
         }
     }
@@ -556,7 +230,7 @@ trait HandlesAPIRequest
      * @param int|string|null $id Model ID
      * @param string|null $getByField
      * @return Model
-     * @throws \Exception
+     * @throws Exception
      */
     protected function getModel($entityModel, $id = null, ?string $getByField = null): Model
     {
@@ -579,7 +253,7 @@ trait HandlesAPIRequest
                 }
             }
         } else {
-            throw new \Exception("Entity model should be an instance of Model or a FQN");
+            throw new Exception("Entity model should be an instance of Model or a FQN");
         }
 
         return $entity;
@@ -591,7 +265,7 @@ trait HandlesAPIRequest
             [
                 'success' => false,
                 'comment' => $comment,
-                'errors' => $errorMessages
+                'errors' => $errorMessages,
             ], $code
         );
     }
@@ -607,7 +281,7 @@ trait HandlesAPIRequest
         return new JsonResponse(
             [
                 'success' => true,
-                'entity' => $mappedEntity
+                'entity' => $mappedEntity,
             ], $code
         );
     }
