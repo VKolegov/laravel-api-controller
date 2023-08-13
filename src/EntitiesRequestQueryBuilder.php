@@ -28,12 +28,27 @@ class EntitiesRequestQueryBuilder
         $this->query = $query;
     }
 
+    public function excludeIds(): self
+    {
+        // Исключаем айдишники
+        $excludeIds = $this->request->get('excludeIds');
+
+        if (is_array($excludeIds)) {
+            $table = $this->query->getModel()->getTable();
+            $key = $this->query->getModel()->getKeyName();
+            $column = "$table.$key"; // e.g. products.id
+            $this->query->whereNotIn($column, $excludeIds);
+        }
+
+        return $this;
+    }
+
     /**
      * @param string[] $fields key - field to filter by, value = field type
      * @return self
      * @throws Exception
      */
-    public function applyFiltering(array $fields): EntitiesRequestQueryBuilder
+    public function applyFiltering(array $fields): self
     {
 
         if (empty($fields)) {
