@@ -47,6 +47,7 @@ class ModelRepository
 
         return $queryBuilder
             ->applyFiltering($this->allowedFilteringFields)
+            ->excludeIds()
             ->applySorting($this->databaseFieldCase)
             ->getQuery()
             ->with($this->relationshipsToEagerLoad);
