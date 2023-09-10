@@ -96,11 +96,7 @@ abstract class AbstractAPIController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (Throwable $e) {
-            return $this->responseBuilder->errorResponse(
-                $e->getMessage(),
-                [],
-                400
-            );
+            return $this->basicErrorResponse($e, $r);
         }
         try {
 
@@ -127,11 +123,7 @@ abstract class AbstractAPIController extends Controller
 
             $this->handleException($e, $r);
 
-            return $this->responseBuilder->errorResponse(
-                $e->getMessage(),
-                [],
-                400
-            );
+            return $this->basicErrorResponse($e, $r);
         }
 
         return $createEntityResponse;
@@ -178,11 +170,7 @@ abstract class AbstractAPIController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (Throwable $e) {
-            return $this->responseBuilder->errorResponse(
-                $e->getMessage(),
-                [],
-                400
-            );
+            return $this->basicErrorResponse($e, $r);
         }
         try {
 
@@ -208,11 +196,7 @@ abstract class AbstractAPIController extends Controller
 
             $this->handleException($e, $r);
 
-            return $this->responseBuilder->errorResponse(
-                $e->getMessage(),
-                [],
-                400
-            );
+            return $this->basicErrorResponse($e, $r);
         }
 
         return $updateEntityResponse;
@@ -260,11 +244,7 @@ abstract class AbstractAPIController extends Controller
 
             $this->handleException($e, $r);
 
-            return $this->responseBuilder->errorResponse(
-                $e->getMessage(),
-                [],
-                400
-            );
+            return $this->basicErrorResponse($e, $r);
         }
     }
 
@@ -365,5 +345,14 @@ abstract class AbstractAPIController extends Controller
 
         \Log::error($t->getMessage(), $context);
         \Log::error($t->getTraceAsString(), $context);
+    }
+
+    protected function basicErrorResponse(\Throwable $t, Request $r): JsonResponse
+    {
+        return $this->responseBuilder->errorResponse(
+            $t->getMessage(),
+            [],
+            400
+        );
     }
 }
