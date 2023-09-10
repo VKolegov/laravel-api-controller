@@ -7,6 +7,7 @@
 namespace VKolegov\LaravelAPIController;
 
 
+use Couchbase\User;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -124,7 +125,7 @@ abstract class AbstractAPIController extends Controller
 
             \DB::rollBack();
 
-            \Log::error($e->getTraceAsString());
+            $this->handleException($e, $r);
 
             return $this->responseBuilder->errorResponse(
                 $e->getMessage(),
@@ -205,7 +206,7 @@ abstract class AbstractAPIController extends Controller
 
             \DB::rollBack();
 
-            \Log::error($e->getTraceAsString());
+            $this->handleException($e, $r);
 
             return $this->responseBuilder->errorResponse(
                 $e->getMessage(),
@@ -230,7 +231,7 @@ abstract class AbstractAPIController extends Controller
     /**
      * @throws Exception
      */
-    public function delete($entity): JsonResponse
+    public function delete($entity, Request $r): JsonResponse
     {
         $model = $this->repository->get(
             $entity,
@@ -257,7 +258,7 @@ abstract class AbstractAPIController extends Controller
         } catch (\Throwable $e) {
             \DB::rollBack();
 
-            \Log::error($e->getTraceAsString());
+            $this->handleException($e, $r);
 
             return $this->responseBuilder->errorResponse(
                 $e->getMessage(),
@@ -353,5 +354,16 @@ abstract class AbstractAPIController extends Controller
     public function relationshipsToEagerLoadForExport(): array
     {
         return static::EXPORT_EAGER_LOAD_RELATIONSHIPS;
+    }
+
+    protected function handleException(\Throwable $t, Request $r): void
+    {
+        $context = [
+          'url' => $r->fullUrl(),
+          'user_id' => \Auth::user() ? \Auth::user()->getAuthIdentifier() : null,
+        ];
+
+        \Log::error($t->getMessage(), $context);
+        \Log::error($t->getTraceAsString(), $context);
     }
 }

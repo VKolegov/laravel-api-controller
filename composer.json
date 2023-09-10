@@ -1,5 +1,6 @@
 {
     "name": "vkolegov/laravel-api-controller",
+    "version": "0.3.2",
     "description": "Basic Controller to create simple API with support for pagination, sorting, filtering and exporting",
     "type": "library",
     "require": {
